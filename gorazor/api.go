@@ -44,6 +44,9 @@ func GenFolder(indir string, outdir string, options Option) (err error) {
 	incdir_abs, _ := filepath.Abs(indir)
 	outdir_abs, _ := filepath.Abs(outdir)
 
+	options["InDirAbs"] = incdir_abs
+	options["OutDirAbs"] = outdir_abs
+
 	paths := []string{}
 
 	visit := func(path string, info os.FileInfo, err error) error {

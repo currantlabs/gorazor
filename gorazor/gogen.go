@@ -164,7 +164,15 @@ func (cp *Compiler) visitFirstBLK(blk *Ast) {
 		}
 	}
 	if cp.layout != "" {
-		path := cp.layout + ".gohtml"
+		// Fix the path before looking for the gohtml file; we may not be in the same dir.
+		incdir_abs := cp.options["InDirAbs"].(string)
+		outdir_abs := cp.options["OutDirAbs"].(string)
+
+		path := os.ExpandEnv("$GOPATH/src/" + cp.layout + ".gohtml")
+		if incdir_abs != "" && outdir_abs != "" {
+			path = strings.Replace(path, outdir_abs, incdir_abs, -1)
+		}
+
 		if exists(path) && len(LayOutArgs(path)) == 0 {
 			//TODO, bad for performance
 			_cp, err := run(path, cp.options)
