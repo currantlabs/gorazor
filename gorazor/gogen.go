@@ -12,9 +12,15 @@ import (
 	"strings"
 
 	"gopkg.in/fsnotify.v1"
+	"go/ast"
+	"go/printer"
+	"bytes"
 )
 
 var GorazorNamespace = `"github.com/sipin/gorazor/gorazor"`
+
+var cfg = printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 4}
+
 
 //------------------------------ Compiler ------------------------------ //
 const (
@@ -42,12 +48,17 @@ type Part struct {
 	value string
 }
 
+type Param struct {
+	Name string
+	Type ast.Spec
+}
+
 type Compiler struct {
 	ast      *Ast
 	buf      string //the final result
 	layout   string
 	firstBLK int
-	params   []string
+	params   []Param
 	parts    []Part
 	imports  map[string]bool
 	options  Option
@@ -98,7 +109,8 @@ func makeCompiler(ast *Ast, options Option, input string) *Compiler {
 	}
 	return &Compiler{ast: ast, buf: "",
 		layout: "", firstBLK: 0,
-		params: []string{}, parts: []Part{},
+		params: []Param{},
+		parts: []Part{},
 		imports: map[string]bool{},
 		options: options,
 		dir:     dir,
@@ -128,8 +140,9 @@ func (cp *Compiler) visitFirstBLK(blk *Ast) {
 	first, cp.buf = cp.buf, pre
 	cp.parts = backup
 
+	log.Println("First: ", first)
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "", "package main\n"+first, parser.ImportsOnly)
+	f, err := parser.ParseFile(fset, "", "package main\n"+first, parser.DeclarationErrors)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -148,21 +161,21 @@ func (cp *Compiler) visitFirstBLK(blk *Ast) {
 				cp.imports[v] = true
 			}
 		}
-	}
 
-	lines := strings.SplitN(first, "\n", -1)
-	for _, l := range lines {
-		l = strings.TrimSpace(l)
-		if strings.HasPrefix(l, "var") {
-			vname := l[4:]
-			if strings.HasSuffix(l, "gorazor.Widget") {
-				cp.imports[GorazorNamespace] = true
-				cp.params = append(cp.params, vname[:len(vname)-14]+"gorazor.Widget")
-			} else {
-				cp.params = append(cp.params, vname)
+		for _, dec := range f.Decls {
+			if dec, ok := dec.(*ast.GenDecl); ok {
+				log.Printf("Dec: %+v\n", dec)
+				for _, spec := range dec.Specs {
+					if spec, ok := spec.(*ast.ValueSpec); ok {
+						for _, name := range spec.Names {
+							cp.params = append(cp.params, Param{Name: name.Name, Type: spec})
+						}
+					}
+				}
 			}
 		}
 	}
+
 	if cp.layout != "" {
 		// Fix the path before looking for the gohtml file; we may not be in the same dir.
 		incdir_abs := cp.options["InDirAbs"].(string)
@@ -197,21 +210,21 @@ func (cp *Compiler) visitExp(child interface{}, parent *Ast, idx int, isHomo boo
 	val := getValStr(child)
 	if htmlEsc == nil {
 		if ppNotExp && idx == 0 && isHomo {
-			needEsape := true
+			needEscape := true
 			switch {
 			case val == "helper" || val == "html" || val == "raw":
-				needEsape = false
+				needEscape = false
 			case pack == "layout":
-				needEsape = true
+				needEscape = true
 				for _, param := range cp.params {
-					if strings.HasPrefix(param, val+" ") {
-						needEsape = false
+					if param.Name == val {
+						needEscape = false
 						break
 					}
 				}
 			}
 
-			if needEsape {
+			if needEscape {
 				start += "gorazor.HTMLEscape("
 				cp.imports[GorazorNamespace] = true
 			} else {
@@ -338,19 +351,27 @@ func (cp *Compiler) processLayout() {
 			foot += ", " + sec + "()"
 		}
 	} else {
-		for idx, arg := range args {
+		for idx, param := range args {
 			//body has been done
 			if idx == 0 {
 				continue
 			}
-			arg = strings.Replace(arg, "string", "", -1)
-			arg = strings.TrimSpace(arg)
+			arg := param.Name
 			found := false
 			for _, sec := range sections {
 				if sec == arg {
 					found = true
 					foot += ", " + sec + "()"
 					break
+				}
+			}
+			if !found {
+				for _, p := range cp.params {
+					if p.Name == arg {
+						found = true
+						foot += ", " + p.Name
+						break
+					}
 				}
 			}
 			if !found {
@@ -373,19 +394,28 @@ func (cp *Compiler) visit() {
 	fun := cp.file
 
 	cp.imports[`"bytes"`] = true
-	head := "package " + pack + "\n import (\n"
+
+	var head bytes.Buffer
+
+	head.WriteString("package ")
+	head.WriteString(pack)
+	head.WriteString("\n import (\n")
+
 	for k, _ := range cp.imports {
-		head += k + "\n"
+		head.WriteString(k)
+		head.WriteByte('\n')
 	}
-	head += "\n)\n func " + fun + "("
+	head.WriteString("\n)\n func ")
+	head.WriteString(fun)
+	head.WriteString("(")
 	for idx, p := range cp.params {
-		head += p
+		cfg.Fprint(&head, token.NewFileSet(), p.Type)
 		if idx != len(cp.params)-1 {
-			head += ", "
+			head.WriteString(", ")
 		}
 	}
-	head += ") string {\n var _buffer bytes.Buffer\n"
-	cp.buf = head + cp.buf
+	head.WriteString(") string {\n var _buffer bytes.Buffer\n")
+	cp.buf = head.String() + cp.buf
 	cp.processLayout()
 }
 
