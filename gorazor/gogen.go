@@ -90,7 +90,7 @@ func (self *Compiler) genPart() {
 			}
 			if p.value != "" {
 				p.value = fmt.Sprintf("%#v", p.value)
-				res += "_buffer.WriteString(" + p.value + ")\n"
+				res += "io.WriteString(w, " + p.value + ")\n"
 			}
 		} else if p.ptype == CBLK {
 			res += p.value + "\n"
@@ -178,8 +178,8 @@ func (cp *Compiler) visitFirstBLK(blk *Ast) {
 
 	if cp.layout != "" {
 		// Fix the path before looking for the gohtml file; we may not be in the same dir.
-		incdir_abs := cp.options["InDirAbs"].(string)
-		outdir_abs := cp.options["OutDirAbs"].(string)
+		incdir_abs, _ := cp.options["InDirAbs"].(string)
+		outdir_abs, _ := cp.options["OutDirAbs"].(string)
 
 		path := os.ExpandEnv("$GOPATH/src/" + cp.layout + ".gohtml")
 		if incdir_abs != "" && outdir_abs != "" {
@@ -208,9 +208,11 @@ func (cp *Compiler) visitExp(child interface{}, parent *Ast, idx int, isHomo boo
 		ppNotExp = false
 	}
 	val := getValStr(child)
+	needEscape := false
+	writeableExp := false
 	if htmlEsc == nil {
 		if ppNotExp && idx == 0 && isHomo {
-			needEscape := true
+			needEscape = true
 			switch {
 			case val == "helper" || val == "html" || val == "raw":
 				needEscape = false
@@ -219,16 +221,18 @@ func (cp *Compiler) visitExp(child interface{}, parent *Ast, idx int, isHomo boo
 				for _, param := range cp.params {
 					if param.Name == val {
 						needEscape = false
+						if param, ok := param.Type.(*ast.ValueSpec); ok {
+							if exp, ok := param.Type.(*ast.SelectorExpr); ok {
+								if exp.Sel != nil && exp.Sel.Name == "Section" {
+									if x, ok := exp.X.(*ast.Ident); ok && x.Name == "gorazor" {
+										writeableExp = true
+									}
+								}
+							}
+						}
 						break
 					}
 				}
-			}
-
-			if needEscape {
-				start += "gorazor.HTMLEscape("
-				cp.imports[GorazorNamespace] = true
-			} else {
-				start += "("
 			}
 		}
 		if ppNotExp && idx == ppChildCnt-1 && isHomo {
@@ -237,7 +241,21 @@ func (cp *Compiler) visitExp(child interface{}, parent *Ast, idx int, isHomo boo
 	}
 
 	if ppNotExp && idx == 0 {
-		start = "_buffer.WriteString(" + start
+		if needEscape {
+			if writeableExp {
+				start = "gorazor.HTMLEscapeWriter(w, (" + start
+			} else {
+				start = "gorazor.HTMLEscapeWriter(w, (" + start
+			}
+			cp.imports[GorazorNamespace] = true
+		} else {
+			if writeableExp {
+				start = "("
+				end += "(w"
+			} else {
+				start = "io.WriteString(w, (" + start
+			}
+		}
 	}
 	if ppNotExp && idx == ppChildCnt-1 {
 		end += ")\n"
@@ -306,21 +324,22 @@ func (cp *Compiler) visitAst(ast *Ast) {
 	}
 }
 
-// TODO, this is dirty now
-func (cp *Compiler) processLayout() {
+func (cp *Compiler) processSections() map[string][]string {
 	lines := strings.SplitN(cp.buf, "\n", -1)
-	out := ""
-	sections := []string{}
+	sections := map[string][]string{}
+	body := []string{}
+	var currentSection []string
+	var currentSectionName string
+	//currentSection = append(currentSection, "body := func(w io.Writer) {\n")
 	scope := 0
 	for _, l := range lines {
 		l = strings.TrimSpace(l)
 		if strings.HasPrefix(l, "section") && strings.HasSuffix(l, "{") {
 			name := l
 			name = strings.TrimSpace(name[7 : len(name)-1])
-			out += "\n " + name + " := func() string {\n"
-			out += "var _buffer bytes.Buffer\n"
 			scope = 1
-			sections = append(sections, name)
+			currentSection = []string{}
+			currentSectionName = name
 		} else if scope > 0 {
 			if strings.HasSuffix(l, "{") {
 				scope++
@@ -328,60 +347,74 @@ func (cp *Compiler) processLayout() {
 				scope--
 			}
 			if scope == 0 {
-				out += "return _buffer.String()\n}\n"
+				sections[currentSectionName] = currentSection
 				scope = 0
 			} else {
-				out += l + "\n"
+				currentSection = append(currentSection, l + "\n")
 			}
 		} else {
-			out += l + "\n"
+			body = append(body, l + "\n")
 		}
 	}
-	cp.buf = out
-	foot := "\nreturn "
+	sections["body"] = body
+	return sections
+}
+
+// TODO, this is dirty now
+func (cp *Compiler) processLayout(sections map[string][]string) {
+	var out bytes.Buffer
+	if (len(sections) == 1) {
+		for _, line := range sections["body"] {
+			out.WriteString(line)
+		}
+	} else {
+		for name, section := range sections {
+			out.WriteString(name + " := func(w io.Writer) {\n")
+			for _, line := range section {
+				out.WriteString(line)
+			}
+			out.WriteString("}\n")
+		}
+	}
+	cp.buf = out.String()
+	foot := ""
 	if cp.layout != "" {
 		parts := strings.SplitN(cp.layout, "/", -1)
 		base := Capitalize(parts[len(parts)-1])
-		foot += "layout." + base + "("
-	}
-	foot += "_buffer.String()"
-	args := LayOutArgs(cp.layout)
-	if len(args) == 0 {
-		for _, sec := range sections {
-			foot += ", " + sec + "()"
-		}
-	} else {
-		for idx, param := range args {
-			//body has been done
-			if idx == 0 {
-				continue
+		foot += "layout.Write" + base + "(w"
+		args := LayOutArgs(cp.layout)
+		if len(args) == 0 {
+			for name, _ := range sections {
+				foot += ", " + name
 			}
-			arg := param.Name
-			found := false
-			for _, sec := range sections {
-				if sec == arg {
-					found = true
-					foot += ", " + sec + "()"
-					break
-				}
-			}
-			if !found {
-				for _, p := range cp.params {
-					if p.Name == arg {
+		} else {
+			for _, param := range args {
+				arg := param.Name
+				found := false
+				for sec, _ := range sections {
+					if sec == arg {
 						found = true
-						foot += ", " + p.Name
+						foot += ", " + sec
 						break
 					}
 				}
-			}
-			if !found {
-				foot += ", " + `""`
+				if !found {
+					for _, p := range cp.params {
+						if p.Name == arg {
+							found = true
+							foot += ", " + p.Name
+							break
+						}
+					}
+				}
+				if !found {
+					foot += ", " + `""`
+				}
 			}
 		}
-	}
-	if cp.layout != "" {
 		foot += ")"
 	}
+
 	foot += "\n}\n"
 	cp.buf += foot
 }
@@ -394,6 +427,7 @@ func (cp *Compiler) visit() {
 	fun := cp.file
 
 	cp.imports[`"bytes"`] = true
+	cp.imports[`"io"`] = true
 
 	var head bytes.Buffer
 
@@ -405,18 +439,41 @@ func (cp *Compiler) visit() {
 		head.WriteString(k)
 		head.WriteByte('\n')
 	}
+
 	head.WriteString("\n)\n func ")
 	head.WriteString(fun)
 	head.WriteString("(")
 	for idx, p := range cp.params {
-		cfg.Fprint(&head, token.NewFileSet(), p.Type)
-		if idx != len(cp.params)-1 {
+		if idx > 0 {
 			head.WriteString(", ")
 		}
+		cfg.Fprint(&head, token.NewFileSet(), p.Type)
 	}
-	head.WriteString(") string {\n var _buffer bytes.Buffer\n")
+	head.WriteString(") string {\n")
+	head.WriteString("\tvar _buffer bytes.Buffer\n")
+	head.WriteString("\tWrite")
+	head.WriteString(fun)
+	head.WriteString("(&_buffer")
+
+	for _, p := range cp.params {
+		head.WriteString(", ")
+		head.WriteString(p.Name)
+	}
+	head.WriteString(")\n")
+	head.WriteString("\treturn _buffer.String()\n")
+	head.WriteString("}\n\n")
+	head.WriteString("func Write")
+	head.WriteString(fun)
+	head.WriteString("(w io.Writer")
+	for _, p := range cp.params {
+		head.WriteString(", ")
+		cfg.Fprint(&head, token.NewFileSet(), p.Type)
+	}
+	head.WriteString(") {\n")
+	log.Println("Visit cp.buf", cp.buf)
+	sections := cp.processSections()
+	cp.processLayout(sections)
 	cp.buf = head.String() + cp.buf
-	cp.processLayout()
 }
 
 func run(path string, Options Option) (*Compiler, error) {

@@ -7,11 +7,26 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"io"
+	"bytes"
 )
+
+type Section func(w io.Writer)
+
+func SectionString(s Section) string {
+	var _buffer bytes.Buffer
+	s(&_buffer)
+	return _buffer.String()
+}
 
 func HTMLEscape(m interface{}) string {
 	s := fmt.Sprint(m)
 	return template.HTMLEscapeString(s)
+}
+
+func HTMLEscapeWriter(w io.Writer, m interface{}) {
+	s := fmt.Sprint(m)
+	template.HTMLEscape(w, []byte(s))
 }
 
 func StrTime(timestamp int64, format string) string {
