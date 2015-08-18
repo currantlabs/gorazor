@@ -13,6 +13,8 @@ import (
 
 type Section func(w io.Writer)
 
+func EmptySection(io.Writer) {}
+
 func SectionString(s Section) string {
 	var _buffer bytes.Buffer
 	s(&_buffer)

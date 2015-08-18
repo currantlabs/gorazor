@@ -11,16 +11,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gopkg.in/fsnotify.v1"
+	"bytes"
 	"go/ast"
 	"go/printer"
-	"bytes"
+
+	"gopkg.in/fsnotify.v1"
 )
 
 var GorazorNamespace = `"github.com/sipin/gorazor/gorazor"`
 
 var cfg = printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 4}
-
 
 //------------------------------ Compiler ------------------------------ //
 const (
@@ -59,6 +59,7 @@ type Compiler struct {
 	layout   string
 	firstBLK int
 	params   []Param
+	types    []*ast.TypeSpec
 	parts    []Part
 	imports  map[string]bool
 	options  Option
@@ -109,8 +110,8 @@ func makeCompiler(ast *Ast, options Option, input string) *Compiler {
 	}
 	return &Compiler{ast: ast, buf: "",
 		layout: "", firstBLK: 0,
-		params: []Param{},
-		parts: []Part{},
+		params:  []Param{},
+		parts:   []Part{},
 		imports: map[string]bool{},
 		options: options,
 		dir:     dir,
@@ -140,7 +141,7 @@ func (cp *Compiler) visitFirstBLK(blk *Ast) {
 	first, cp.buf = cp.buf, pre
 	cp.parts = backup
 
-	log.Println("First: ", first)
+	//log.Println("First: ", first)
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "", "package main\n"+first, parser.DeclarationErrors)
 	if err != nil {
@@ -164,12 +165,14 @@ func (cp *Compiler) visitFirstBLK(blk *Ast) {
 
 		for _, dec := range f.Decls {
 			if dec, ok := dec.(*ast.GenDecl); ok {
-				log.Printf("Dec: %+v\n", dec)
 				for _, spec := range dec.Specs {
 					if spec, ok := spec.(*ast.ValueSpec); ok {
 						for _, name := range spec.Names {
 							cp.params = append(cp.params, Param{Name: name.Name, Type: spec})
 						}
+					}
+					if spec, ok := spec.(*ast.TypeSpec); ok {
+						cp.types = append(cp.types, spec)
 					}
 				}
 			}
@@ -350,10 +353,10 @@ func (cp *Compiler) processSections() map[string][]string {
 				sections[currentSectionName] = currentSection
 				scope = 0
 			} else {
-				currentSection = append(currentSection, l + "\n")
+				currentSection = append(currentSection, l+"\n")
 			}
 		} else {
-			body = append(body, l + "\n")
+			body = append(body, l+"\n")
 		}
 	}
 	sections["body"] = body
@@ -363,7 +366,7 @@ func (cp *Compiler) processSections() map[string][]string {
 // TODO, this is dirty now
 func (cp *Compiler) processLayout(sections map[string][]string) {
 	var out bytes.Buffer
-	if (len(sections) == 1) {
+	if len(sections) == 1 {
 		for _, line := range sections["body"] {
 			out.WriteString(line)
 		}
@@ -408,7 +411,24 @@ func (cp *Compiler) processLayout(sections map[string][]string) {
 					}
 				}
 				if !found {
-					foot += ", " + `""`
+					isMissingSection := false
+					if param, ok := param.Type.(*ast.ValueSpec); ok {
+						if exp, ok := param.Type.(*ast.SelectorExpr); ok {
+							if exp.Sel != nil && exp.Sel.Name == "Section" {
+								if x, ok := exp.X.(*ast.Ident); ok && x.Name == "gorazor" {
+									isMissingSection = true
+								}
+							}
+						}
+					}
+					if isMissingSection {
+						cp.imports[GorazorNamespace] = true
+						foot += ", " + `gorazor.EmptySection`
+
+					} else {
+						foot += ", " + `""`
+
+					}
 				}
 			}
 		}
@@ -429,6 +449,8 @@ func (cp *Compiler) visit() {
 	cp.imports[`"bytes"`] = true
 	cp.imports[`"io"`] = true
 
+	sections := cp.processSections()
+	cp.processLayout(sections)
 	var head bytes.Buffer
 
 	head.WriteString("package ")
@@ -440,7 +462,13 @@ func (cp *Compiler) visit() {
 		head.WriteByte('\n')
 	}
 
-	head.WriteString("\n)\n func ")
+	head.WriteString("\n)\n")
+	for _, t := range cp.types {
+		head.WriteString("type ")
+		cfg.Fprint(&head, token.NewFileSet(), t)
+		head.WriteString("\n")
+	}
+	head.WriteString("func ")
 	head.WriteString(fun)
 	head.WriteString("(")
 	for idx, p := range cp.params {
@@ -470,9 +498,6 @@ func (cp *Compiler) visit() {
 		cfg.Fprint(&head, token.NewFileSet(), p.Type)
 	}
 	head.WriteString(") {\n")
-	log.Println("Visit cp.buf", cp.buf)
-	sections := cp.processSections()
-	cp.processLayout(sections)
 	cp.buf = head.String() + cp.buf
 }
 
