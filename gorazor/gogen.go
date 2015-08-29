@@ -16,6 +16,7 @@ import (
 	"go/printer"
 
 	"gopkg.in/fsnotify.v1"
+	"sort"
 )
 
 var GorazorNamespace = `"github.com/sipin/gorazor/gorazor"`
@@ -371,7 +372,13 @@ func (cp *Compiler) processLayout(sections map[string][]string) {
 			out.WriteString(line)
 		}
 	} else {
-		for name, section := range sections {
+		var sectionNames []string
+		for name := range sections {
+			sectionNames = append(sectionNames, name)
+		}
+		sort.Strings(sectionNames)
+		for _, name := range sectionNames {
+			section := sections[name]
 			out.WriteString(name + " := func(w io.Writer) {\n")
 			for _, line := range section {
 				out.WriteString(line)
