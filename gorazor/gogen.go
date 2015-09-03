@@ -190,7 +190,7 @@ func (cp *Compiler) visitFirstBLK(blk *Ast) {
 			path = strings.Replace(path, outdir_abs, incdir_abs, -1)
 		}
 
-		if exists(path) && len(LayOutArgs(path)) == 0 {
+		if exists(path) && len(LayoutArgs(path)) == 0 {
 			//TODO, bad for performance
 			_cp, err := run(path, cp.options)
 			if err != nil {
@@ -392,7 +392,7 @@ func (cp *Compiler) processLayout(sections map[string][]string) {
 		parts := strings.SplitN(cp.layout, "/", -1)
 		base := Capitalize(parts[len(parts)-1])
 		foot += "layout.Write" + base + "(w"
-		args := LayOutArgs(cp.layout)
+		args := LayoutArgs(cp.layout)
 		if len(args) == 0 {
 			for name, _ := range sections {
 				foot += ", " + name

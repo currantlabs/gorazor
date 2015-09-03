@@ -13,7 +13,7 @@ type LayManager struct {
 var single *LayManager = nil
 var mutexLock sync.RWMutex
 
-func LayOutArgs(file string) []Param {
+func LayoutArgs(file string) []Param {
 	mutexLock.RLock()
 	defer mutexLock.RUnlock()
 	manager := newManager()
