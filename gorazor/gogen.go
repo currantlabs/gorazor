@@ -15,8 +15,9 @@ import (
 	"go/ast"
 	"go/printer"
 
-	"gopkg.in/fsnotify.v1"
 	"sort"
+
+	"gopkg.in/fsnotify.v1"
 )
 
 var GorazorNamespace = `"github.com/sipin/gorazor/gorazor"`
@@ -55,17 +56,19 @@ type Param struct {
 }
 
 type Compiler struct {
-	ast      *Ast
-	buf      string //the final result
-	layout   string
-	firstBLK int
-	params   []Param
-	types    []*ast.TypeSpec
-	parts    []Part
-	imports  map[string]bool
-	options  Option
-	dir      string
-	file     string
+	ast       *Ast
+	buf       string //the final result
+	layout    string
+	firstBLK  int
+	params    []Param
+	types     []*ast.TypeSpec
+	constants []*ast.ValueSpec
+	functions []*ast.FuncDecl
+	parts     []Part
+	imports   map[string]bool
+	options   Option
+	dir       string
+	file      string
 }
 
 func (self *Compiler) addPart(part Part) {
@@ -168,14 +171,21 @@ func (cp *Compiler) visitFirstBLK(blk *Ast) {
 			if dec, ok := dec.(*ast.GenDecl); ok {
 				for _, spec := range dec.Specs {
 					if spec, ok := spec.(*ast.ValueSpec); ok {
-						for _, name := range spec.Names {
-							cp.params = append(cp.params, Param{Name: name.Name, Type: spec})
+						if dec.Tok == token.CONST {
+							cp.constants = append(cp.constants, spec)
+						} else if dec.Tok == token.VAR {
+							for _, name := range spec.Names {
+								cp.params = append(cp.params, Param{Name: name.Name, Type: spec})
+							}
 						}
 					}
 					if spec, ok := spec.(*ast.TypeSpec); ok {
 						cp.types = append(cp.types, spec)
 					}
 				}
+			}
+			if dec, ok := dec.(*ast.FuncDecl); ok {
+				cp.functions = append(cp.functions, dec)
 			}
 		}
 	}
@@ -475,6 +485,21 @@ func (cp *Compiler) visit() {
 		cfg.Fprint(&head, token.NewFileSet(), t)
 		head.WriteString("\n")
 	}
+
+	if len(cp.constants) > 0 {
+		head.WriteString("const (\n")
+		for _, con := range cp.constants {
+			cfg.Fprint(&head, token.NewFileSet(), con)
+			head.WriteString("\n")
+		}
+		head.WriteString(")\n")
+	}
+
+	for _, f := range cp.functions {
+		cfg.Fprint(&head, token.NewFileSet(), f)
+		head.WriteString("\n")
+	}
+	head.WriteString("\n")
 	head.WriteString("func ")
 	head.WriteString(fun)
 	head.WriteString("(")
