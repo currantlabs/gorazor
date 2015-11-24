@@ -2,7 +2,7 @@ package cases
 
 import (
 	"bytes"
-	"github.com/sipin/gorazor/gorazor"
+	"github.com/currantlabs/gorazor/gorazor"
 )
 
 func Keyword() string {

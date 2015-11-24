@@ -20,7 +20,7 @@ import (
 	"gopkg.in/fsnotify.v1"
 )
 
-var GorazorNamespace = `"github.com/sipin/gorazor/gorazor"`
+var GorazorNamespace = `"github.com/currantlabs/gorazor/gorazor"`
 
 var cfg = printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 4}
 

@@ -2,7 +2,7 @@ package layout
 
 import (
 	"bytes"
-	"github.com/sipin/gorazor/gorazor"
+	"github.com/currantlabs/gorazor/gorazor"
 	"tpl/admin/helper"
 )
 

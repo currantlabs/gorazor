@@ -3,7 +3,7 @@ package cases
 import (
 	"bytes"
 	"dm"
-	"github.com/sipin/gorazor/gorazor"
+	"github.com/currantlabs/gorazor/gorazor"
 	"zfw/models"
 	. "zfw/tplhelper"
 )

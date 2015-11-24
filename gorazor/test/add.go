@@ -3,7 +3,7 @@ package cases
 import (
 	"bytes"
 	"cases/layout"
-	"github.com/sipin/gorazor/gorazor"
+	"github.com/currantlabs/gorazor/gorazor"
 )
 
 func Add(content string, err string) string {

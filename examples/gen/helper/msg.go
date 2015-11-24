@@ -2,7 +2,7 @@ package helper
 
 import (
 	"bytes"
-	"github.com/sipin/gorazor/gorazor"
+	"github.com/currantlabs/gorazor/gorazor"
 	. "kp/models"
 )
 

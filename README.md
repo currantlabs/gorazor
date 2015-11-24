@@ -1,6 +1,6 @@
 # GoRazor
 
-[![Build Status](https://travis-ci.org/sipin/gorazor.svg?branch=master)](https://travis-ci.org/sipin/gorazor)
+[![Build Status](https://travis-ci.org/currantlabs/gorazor.svg?branch=master)](https://travis-ci.org/sipin/gorazor)
 
 GoRazor is the Go port of the razor view engine originated from [asp.net in 2011](http://weblogs.asp.net/scottgu/archive/2010/07/02/introducing-razor.aspx). In summary, GoRazor's:
 
@@ -22,7 +22,7 @@ Install:
 
 ```sh
 go get gopkg.in/fsnotify.v1
-go get github.com/sipin/gorazor
+go get github.com/currantlabs/gorazor
 ```
 
 Usage:
@@ -91,7 +91,7 @@ Only use `raw` when you are 100% sure what you are doing, please always be aware
 }
 ```
 
-Please use [example](https://github.com/sipin/gorazor/blob/master/examples/tpl/home.gohtml) for reference.
+Please use [example](https://github.com/currantlabs/gorazor/blob/master/examples/tpl/home.gohtml) for reference.
 
 ## Code block
 
@@ -161,7 +161,7 @@ So, using a helper template is similar to:
 
 GoRazor won't HTML escape the output of `helper.XXX`.
 
-Please use [example](https://github.com/sipin/gorazor/blob/master/examples/tpl/home.gohtml) for reference.
+Please use [example](https://github.com/currantlabs/gorazor/blob/master/examples/tpl/home.gohtml) for reference.
 
 ## Layout & Section
 
@@ -270,7 +270,7 @@ Thus, it's possible for the layout to define default section content in such man
 
 # Example
 
-Here is a simple example of [gorazor templates](https://github.com/sipin/gorazor/tree/master/examples/tpl) and the corresponding [generated codes](https://github.com/sipin/gorazor/tree/master/examples/gen).
+Here is a simple example of [gorazor templates](https://github.com/currantlabs/gorazor/tree/master/examples/tpl) and the corresponding [generated codes](https://github.com/sipin/gorazor/tree/master/examples/gen).
 
 # FAQ
 
@@ -282,7 +282,7 @@ Here is a simple example of [gorazor templates](https://github.com/sipin/gorazor
 
 ![syntax highlight](https://lh4.googleusercontent.com/-_mhaTNt04aU/U7kaSbSXCMI/AAAAAAAAH48/06DintuZPVE/w875-h770-p/Screen+Shot+2014-07-06+at+2.17.49+PM.png)
 
-**Context aware auto-completion**, you may need to [manually modify](https://github.com/sipin/GoSublime/commit/fd0b979e7cc1d8f2438bb314399c2456d16f3ffb) GoSublime package, bascially replace `gscomplete.py` in with [this](https://raw.githubusercontent.com/sipin/GoSublime/gorazor/gscomplete.py) and `gslint.py` with [this](https://raw.githubusercontent.com/sipin/GoSublime/gorazor/gslint.py)
+**Context aware auto-completion**, you may need to [manually modify](https://github.com/currantlabs/GoSublime/commit/fd0b979e7cc1d8f2438bb314399c2456d16f3ffb) GoSublime package, bascially replace `gscomplete.py` in with [this](https://raw.githubusercontent.com/sipin/GoSublime/gorazor/gscomplete.py) and `gslint.py` with [this](https://raw.githubusercontent.com/sipin/GoSublime/gorazor/gslint.py)
 
 ![auto complete](https://lh5.googleusercontent.com/-A95EdOJGVv8/U7kaSdMkP-I/AAAAAAAAH5A/5ZI4z7X2l_Y/w958-h664-no/Screen+Shot+2014-07-05+at+10.38.22+PM.png)
 
@@ -300,7 +300,7 @@ Here is a simple example of [gorazor templates](https://github.com/sipin/gorazor
 
 # Credits
 
-The very [first version](https://github.com/sipin/gorazor/releases/tag/vash) of GoRazor is essentially a hack of razor's port in javascript: [vash](https://github.com/kirbysayshi/vash), thus requires node's to run.
+The very [first version](https://github.com/currantlabs/gorazor/releases/tag/vash) of GoRazor is essentially a hack of razor's port in javascript: [vash](https://github.com/kirbysayshi/vash), thus requires node's to run.
 
 GoRazor has been though several rounds of refactoring and it has completely rewritten in pure Go. Nonetheless, THANK YOU [@kirbysayshi](https://github.com/kirbysayshi) for Vash! Without Vash, GoRazor may never start.
 

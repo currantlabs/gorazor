@@ -115,7 +115,7 @@ In `gohtml` you may insert `Go` code snippet, like this:
 ```
 
 For more details syntax please refer to [Web programming using the Razor syntax](http://www.asp.net/web-pages/tutorials/basics/2-introduction-to-asp-net-web-programming-using-the-razor-syntax).
-And you may also add `javascript` code in `gohtml`, where ctx is `var ctx *web.Context`, details please refer to [sipin/web](http://github.com/sipin/web).
+And you may also add `javascript` code in `gohtml`, where ctx is `var ctx *web.Context`, details please refer to [currantlabs/web](http://github.com/sipin/web).
 
 
 ```javascript

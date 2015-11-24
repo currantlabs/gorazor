@@ -5,7 +5,7 @@ go:
   - release
 
 install:
-  - go get github.com/sipin/gorazor
+  - go get github.com/currantlabs/gorazor
 
 script:
   - go test -v ./gorazor/
