@@ -1,0 +1,5 @@
+github.com/hoisie/web v0.1.0/go.mod h1:9rKIjxNOF05p21HiYMbaQy+ijn3nHaWi2mV3l/KnoIE=
+golang.org/x/sys v0.0.0-20180514143608-7c87d13f8e83 h1:RBQVaDuCnVU3bRWKyzSxMStfh2k1xl+FdtjOsarwO28=
+golang.org/x/sys v0.0.0-20180514143608-7c87d13f8e83/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+gopkg.in/fsnotify.v1 v1.4.7 h1:xOHLXZwVvI9hhs+cLKq5+I5onOuwQLhQwiu63xxlHs4=
+gopkg.in/fsnotify.v1 v1.4.7/go.mod h1:Tz8NjZHkW78fSQdbUxIjBTcgA1z1m8ZHf0WmKUhAMys=
