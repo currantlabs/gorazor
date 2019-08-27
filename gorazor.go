@@ -21,6 +21,7 @@ func main() {
 	isDebug := flag.Bool("debug", false, "use debug mode")
 	isWatch := flag.Bool("watch", false, "use watch mode")
 	nameNotChange := flag.Bool("nameNotChange", false, "do not change name of the template")
+	prefix := flag.String("prefix", "", "prefix for packages")
 
 	flag.Parse()
 
@@ -34,6 +35,9 @@ func main() {
 	}
 	if *nameNotChange {
 		options["NameNotChange"] = *nameNotChange
+	}
+	if *prefix != "" {
+		options["Prefix"] = *prefix
 	}
 
 	if len(flag.Args()) != 2 {

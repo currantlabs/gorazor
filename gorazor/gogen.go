@@ -195,10 +195,28 @@ func (cp *Compiler) visitFirstBLK(blk *Ast) {
 		incdir_abs, _ := cp.options["InDirAbs"].(string)
 		outdir_abs, _ := cp.options["OutDirAbs"].(string)
 
-		path := os.ExpandEnv("$GOPATH/src/" + cp.layout + ".gohtml")
+		layout := cp.layout + ".gohtml"
+
+		prefix, hasPrefix := cp.options["Prefix"].(string)
+		if hasPrefix {
+			layout = strings.TrimPrefix(layout, prefix)
+		}
+
+		path := layout
 		if incdir_abs != "" && outdir_abs != "" {
+			if hasPrefix {
+				wd, err := os.Getwd()
+				if err != nil {
+					panic(err)
+				}
+				path = filepath.Join(wd, path)
+			}
 			path = strings.Replace(path, outdir_abs, incdir_abs, -1)
 		}
+		if !exists(path) {
+			path = os.ExpandEnv("$GOPATH/src/" + cp.layout + ".gohtml")
+		}
+
 
 		if exists(path) && len(LayoutArgs(path)) == 0 {
 			//TODO, bad for performance
